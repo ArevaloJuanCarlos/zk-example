@@ -1,13 +1,22 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Button, Platform, StyleSheet } from 'react-native';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { identityCreation } from '@/model/wallet/walletFunctions';
 import { Link } from 'expo-router';
 
 export default function HomeScreen() {
+  const createIdentity = () => {
+    identityCreation().then(() => {
+      console.log('Identity creation process completed.');
+    }).catch((error) => {
+      console.error('Error in identity creation process:', error);
+    });
+  }
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -35,6 +44,10 @@ export default function HomeScreen() {
           </ThemedText>{' '}
           to open developer tools.
         </ThemedText>
+        <Button
+          title='Create identity'
+          onPress={createIdentity}
+        />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <Link href="/modal">
