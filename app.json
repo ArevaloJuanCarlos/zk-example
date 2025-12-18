@@ -41,7 +41,8 @@
           }
         }
       ],
-      "./plugins/android-blob-provider"
+      "./plugins/android-blob-provider",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

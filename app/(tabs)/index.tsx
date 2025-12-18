@@ -1,111 +1,113 @@
-import { Image } from 'expo-image';
-import { Button, Platform, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { identityCreation } from '@/model/wallet/walletFunctions';
-import { Link } from 'expo-router';
+import { signIn } from '@/model/wallet/walletFunctions';
 
-export default function HomeScreen() {
-  const createIdentity = () => {
-    identityCreation().then(() => {
-      console.log('Identity creation process completed.');
-    }).catch((error) => {
-      console.error('Error in identity creation process:', error);
-    });
-  }
+export default function SignInScreen() {
+  const [loading, setLoading] = useState(false);
+
+  const onSignIn = async () => {
+    try {
+      setLoading(true);
+      
+      await signIn();
+
+      Alert.alert('Signed in', `Welcome back!`);
+    } catch (e) {
+      console.error('Sign in error:', e);
+      Alert.alert('Sign in failed', 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.select({ ios: 'padding', android: undefined })}
+    >
+      <ThemedView style={styles.header}>
+        <ThemedText type="title">Sign in</ThemedText>
+        <ThemedText type="default">ZK login example</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-        <Button
-          title='Create identity'
-          onPress={createIdentity}
-        />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+      <View style={styles.form}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={onSignIn}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <ThemedText type="defaultSemiBold" style={styles.buttonLabel}>
+              Sign In
+            </ThemedText>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.footer}>
+        <ThemedText type="default">
+          Don't have an account? <ThemedText type="defaultSemiBold">Sign up</ThemedText>
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  header: {
+    marginBottom: 24,
+    gap: 4,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  form: {
+    gap: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  inputGroup: {
+    gap: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
+  },
+  button: {
+    marginTop: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonLabel: {
+    color: '#FFFFFF',
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
   },
 });

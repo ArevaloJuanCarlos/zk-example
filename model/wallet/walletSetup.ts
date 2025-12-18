@@ -4,6 +4,7 @@ import {
   AuthDataPrepareFunc,
   BjjProvider,
   CircuitData,
+  CircuitStorage,
   CredentialStatusPublisherRegistry,
   CredentialStatusResolverRegistry,
   CredentialStatusType,
@@ -13,7 +14,6 @@ import {
   defaultEthConnectionConfig,
   EthConnectionConfig,
   EthStateStorage,
-  FSCircuitStorage,
   ICircuitStorage,
   ICredentialWallet,
   IDataStorage,
@@ -43,6 +43,7 @@ import {
   ZKPPacker
 } from '@0xpolygonid/js-sdk';
 import { proving } from '@iden3/js-jwz';
+import { ExpoDataSource } from './circuitStorage';
 
 
 export type NetworkConfig = {
@@ -134,9 +135,9 @@ export async function initCredentialWallet(dataStorage: IDataStorage): Promise<C
 }
 
 export async function initCircuitStorage(): Promise<ICircuitStorage> {
-  return new FSCircuitStorage({
-    dirname: circuitsFolder
-  });
+  return new CircuitStorage(new ExpoDataSource({
+    dirname: process.env.EXPO_PUBLIC_VERIFIER + '/circuits'
+  }));
 }
 export async function initProofService(
   identityWallet: IIdentityWallet,
@@ -145,7 +146,7 @@ export async function initProofService(
   circuitStorage: ICircuitStorage
 ): Promise<ProofService> {
   return new ProofService(identityWallet, credentialWallet, circuitStorage, stateStorage, {
-    ipfsGatewayURL: 'https://ipfs.io'
+    ipfsGatewayURL: 'https://ipfs-proxy-cache.privado.id'
   });
 }
 
