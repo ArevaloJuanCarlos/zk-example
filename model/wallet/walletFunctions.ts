@@ -1,8 +1,8 @@
-import { W3CCredential, ZeroKnowledgeProofRequest } from "@0xpolygonid/js-sdk";
+import { CircuitId, CredentialRequest, CredentialStatusType, ZeroKnowledgeProofRequest } from "@0xpolygonid/js-sdk";
 import { DID } from "@iden3/js-iden3-core";
 import { fetch } from 'expo/fetch';
 
-import { defaultIdentityCreationOptions, defaultNetworkConnection } from "./constants";
+import { defaultIdentityCreationOptions, defaultNetworkConnection, rhsUrl } from "./constants";
 import { userVC } from "./vc";
 import { initCircuitStorage, initInMemoryDataStorageAndWallets, initProofService } from "./walletSetup";
 
@@ -37,40 +37,140 @@ export async function signIn() {
 }
 
 export async function generateProof(proofRequest: string) {
+  console.log('================= initialize wallets and services ===================');
   const { identityWallet, dataStorage, credentialWallet } = await initInMemoryDataStorageAndWallets(defaultNetworkConnection);
   const circuitStorage = await initCircuitStorage();
-  
+  const proofService = await initProofService(identityWallet, credentialWallet, dataStorage.states, circuitStorage);
+  /*
   const proofRequestParsed = JSON.parse(proofRequest);
   const did = DID.parse(userVC.did);
   const credential = W3CCredential.fromJSON(userVC.vc);
+  */
 
-  console.log('=============== load credential ===============');
-  dataStorage.identity.saveIdentity({
+  console.log('================= create identities and issue credential ===================');
+  const { did: userDID, credential: authBJJCredentialUser } = await identityWallet.createIdentity({
+    ...defaultIdentityCreationOptions
+  });
+
+  console.log('=============== user did ===============');
+  console.log(userDID.string());
+
+  const { did: issuerDID, credential: issuerAuthBJJCredential } =
+    await identityWallet.createIdentity({ ...defaultIdentityCreationOptions });
+
+  const credentialRequest = createKYCAgeCredential(userDID);
+  console.log('=============== credentialRequest ===============');
+  console.log(credentialRequest);
+  const credential = await identityWallet.issueCredential(issuerDID, credentialRequest);
+
+  console.log('=============== credential ===============');
+  console.log(credential);
+
+  await dataStorage.credential.saveCredential(credential);
+
+  console.log('=============== save credential in memory ===============');
+  await dataStorage.identity.saveIdentity({
     did: userVC.did,
-    isStateGenesis: true,
-    isStatePublished: false,
   })
+  await dataStorage.credential.saveCredential(credential);
 
-  console.log('=============== key creation ===============');
-  const proofService = await initProofService(identityWallet, credentialWallet, dataStorage.states, circuitStorage);
+  console.log('================= generate Iden3SparseMerkleTreeProof =======================');
 
-  console.log('=============== proof generation ===============');  
+  const res = await identityWallet.addCredentialsToMerkleTree([credential], issuerDID);
+
+  console.log('================= push states to rhs ===================');
+
+  await identityWallet.publishRevocationInfoByCredentialStatusType(
+    issuerDID,
+    CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+    { rhsUrl }
+  );
+
+  console.log('================= generate credentialAtomicSigV2 ===================');
+
+  const proofReqSig: ZeroKnowledgeProofRequest = createKYCAgeCredentialRequest(
+    CircuitId.AtomicQuerySigV2,
+    credentialRequest
+  );
+
+  const { proof, pub_signals } = await proofService.generateProof(proofReqSig, userDID, {
+    skipRevocation: true,
+    credential,
+  });
+
+
+  console.log('================= verify proof ===================');
+  const sigProofOk = await proofService.verifyProof(
+    { proof, pub_signals },
+    CircuitId.AtomicQuerySigV2
+  );
+  console.log('valid: ', sigProofOk);
+}
+
+
+function createKYCAgeCredential(did: DID) {
+  const credentialRequest: CredentialRequest = {
+    credentialSchema:
+      'https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json',
+    type: 'KYCAgeCredential',
+    credentialSubject: {
+      id: did.string(),
+      birthday: 19960424,
+      documentType: 99
+    },
+    expiration: 12345678888,
+    revocationOpts: {
+      type: CredentialStatusType.Iden3ReverseSparseMerkleTreeProof,
+      id: rhsUrl
+    }
+  };
+  return credentialRequest;
+}
+
+function createKYCAgeCredentialRequest(
+  circuitId: CircuitId,
+  credentialRequest: CredentialRequest
+): ZeroKnowledgeProofRequest {
   const proofReqSig: ZeroKnowledgeProofRequest = {
+    id: 1,
+    circuitId: CircuitId.AtomicQuerySigV2,
     optional: false,
-    ...proofRequestParsed.body.scope[0]
+    query: {
+      allowedIssuers: ['*'],
+      type: credentialRequest.type,
+      context:
+        'https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld',
+      credentialSubject: {
+        documentType: {
+          $eq: 99
+        }
+      }
+    }
   };
 
-  const { proof, pub_signals } = await proofService.generateProof(
-    proofReqSig,
-    did,
-    {
-      skipRevocation: true,
-      credential,
+  const proofReqMtp: ZeroKnowledgeProofRequest = {
+    id: 1,
+    circuitId: CircuitId.AtomicQueryMTPV2,
+    optional: false,
+    query: {
+      allowedIssuers: ['*'],
+      type: credentialRequest.type,
+      context:
+        'https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld',
+      credentialSubject: {
+        birthday: {
+          $lt: 20020101
+        }
+      }
     }
-  )
+  };
 
-  console.log('=============== proof ===============');
-  console.log(JSON.stringify(proof));
-  console.log('=============== public signals ===============');
-  console.log(JSON.stringify(pub_signals));
+  switch (circuitId) {
+    case CircuitId.AtomicQuerySigV2:
+      return proofReqSig;
+    case CircuitId.AtomicQueryMTPV2:
+      return proofReqMtp;
+    default:
+      return proofReqSig;
+  }
 }

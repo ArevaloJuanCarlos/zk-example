@@ -11,7 +11,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { signIn } from '@/model/wallet/walletFunctions';
+import { generateProof } from '@/model/wallet/walletFunctions';
 
 export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function SignInScreen() {
     try {
       setLoading(true);
       
-      await signIn();
+      await generateProof("");
 
       Alert.alert('Signed in', `Welcome back!`);
     } catch (e) {

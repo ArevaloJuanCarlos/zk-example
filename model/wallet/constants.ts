@@ -1,6 +1,6 @@
 import { CredentialStatusType, IdentityCreationOptions } from "@0xpolygonid/js-sdk";
 
-const rhsUrl = process.env.EXPO_PUBLIC_RHS_URL as string;
+export const rhsUrl = process.env.EXPO_PUBLIC_RHS_URL as string;
 
 export const defaultNetworkConnection = {
   rpcUrl: process.env.EXPO_PUBLIC_RPC_URL as string,

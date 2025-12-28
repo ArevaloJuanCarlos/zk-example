@@ -11,15 +11,14 @@ global.fetch = async (url, body) => {
       url = url.toString();
     }
 
-    let response;
-    if(Object.keys(body || {}).length === 0){
-      response = await fetch(url);
-    } else {
-      response = await fetch(url, {
-        ...body,
-        method: body?.method?.toUpperCase() ?? 'GET',
-      })
-    }
+    const response = await fetch(url, {
+      ...body,
+      headers: {
+        ...(body?.headers?.map || body?.headers || {}),
+        'accept-encoding': 'identity',
+      },
+      method: body?.method?.toUpperCase() ?? 'GET',
+    });
     return response;
   } catch (error) {
     console.log('Polyfilled fetch error:', error);
